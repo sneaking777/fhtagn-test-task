@@ -45,13 +45,24 @@
 ### Таблицы
 
 **`users`** — справочник, упрощённо.
-- `id`, `email`, `name`, `created_at`
+- `id` BIGINT PK
+- `email` VARCHAR(255) NOT NULL UNIQUE
+- `name` VARCHAR(255) NOT NULL
+- `created_at` TIMESTAMP
 
 **`products`** — справочник, упрощённо.
-- `id`, `sku`, `name`, `price` (BIGINT), `is_active`, `stock`
+- `id` BIGINT PK
+- `article` VARCHAR(64) NOT NULL UNIQUE — внешний бизнес-код товара
+- `name` VARCHAR(255) NOT NULL
+- `price` BIGINT NOT NULL — текущая цена в минорных единицах валюты
+- `is_active` BOOLEAN NOT NULL DEFAULT TRUE
+- `stock` INT NOT NULL DEFAULT 0 — остаток на складе
 
 **`pickup_points`** — пункты выдачи.
-- `id`, `code`, `address`, `is_active`
+- `id` BIGINT PK
+- `code` VARCHAR(32) NOT NULL UNIQUE
+- `address` VARCHAR(255) NOT NULL
+- `is_active` BOOLEAN NOT NULL DEFAULT TRUE
 
 **`orders`** — корневая сущность заказа.
 - `id` BIGINT PK
