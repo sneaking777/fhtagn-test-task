@@ -319,5 +319,13 @@ sequenceDiagram
 - **Новый тип доставки** (например, курьер с временным окном) — миграция: новый литерал в ENUM `type` + nullable колонки + новый `*DeliveryData` + ветка в обработчике. Существующие данные не трогаем.
 - **Новый способ оплаты** (СБП, рассрочка) — аналогично.
 - **Промокоды/скидки** — отдельная таблица `order_discounts` (one-to-many с `orders`), `total_amount` остаётся итоговой суммой к оплате.
-- **Несколько платежей за один заказ** (частичная оплата) — снимаем `UNIQUE` с `payments.order_id`, добавляем `payments.applied_amount`.
+- **Несколько платежей за один заказ (частичная оплата)** — отдельная зона риска по race conditions:
+  1. Снять `UNIQUE(order_id)` с `payments`.
+  2. Добавить `orders.paid_amount BIGINT NOT NULL DEFAULT 0`.
+  3. Каждый webhook от шлюза в одной транзакции:
+     - `INSERT` в `payments` с `external_id` (`UNIQUE` — защита от повторного webhook'а от шлюза).
+     - Атомарный `UPDATE orders SET paid_amount = paid_amount + :amount, status = CASE WHEN paid_amount + :amount >= total_amount THEN 'paid' ELSE status END WHERE id = ?`.
+  4. Опционально — `CHECK (paid_amount <= total_amount)` или отдельный сценарий возврата излишка.
+
+  Race condition между параллельными webhook'ами исключается за счёт атомарности `UPDATE` на одной строке заказа. Альтернатива — `SELECT ... FOR UPDATE` на `orders.id` перед вставкой платежа; работает, но добавляет лишнюю блокировку. Идемпотентность webhook'а — через `payments.external_id UNIQUE`.
 - **Резервирование стока без списания** — отдельная таблица `stock_reservations` с TTL вместо `UPDATE products.stock`. Полезно, когда заказ оформляется, но пока не оплачен.
